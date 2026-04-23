@@ -354,7 +354,33 @@ namespace Trinet.Core.IO.Ntfs
 			return result;
 		}
 
-		public static bool FileExists(string name) => -1 != SafeGetFileAttributes(name);
+		public static bool FileExists(string name)
+		{
+			if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+			using (SafeFileHandle handle = SafeCreateFile(name, 0, FileShare.ReadWrite | FileShare.Delete, IntPtr.Zero, FileMode.Open, 0, IntPtr.Zero))
+			{
+				if (!handle.IsInvalid)
+				{
+					return true;
+				}
+
+				int errorCode = Marshal.GetLastWin32Error();
+				switch (errorCode)
+				{
+					case ErrorFileNotFound:
+					case ErrorPathNotFound:
+					{
+						return false;
+					}
+					default:
+					{
+						ThrowIOError(errorCode, name);
+						return false;
+					}
+				}
+			}
+		}
 
 		public static bool SafeDeleteFile(string name)
 		{
